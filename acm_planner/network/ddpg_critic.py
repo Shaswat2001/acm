@@ -11,7 +11,7 @@ class DDPGCritic(nn.Module):
 
     @nn.compact
     def __call__(self, obs: jnp.ndarray, action: jnp.ndarray) -> jnp.ndarray:
-        
+
         input = jnp.concatenate([obs, action], axis=1)
 
         for i, size in enumerate(self.hidden_dim):

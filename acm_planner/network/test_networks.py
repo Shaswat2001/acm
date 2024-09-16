@@ -12,7 +12,7 @@ class TestCriticMethods(unittest.TestCase):
         x2 = random.uniform(key_x2, (4, 4))
 
         return x1, x2, key2
-    
+
     def test_ddpg(self):
         
         x1, x2, key = self.create_input()
@@ -26,6 +26,7 @@ class TestCriticMethods(unittest.TestCase):
 
         self.assertEqual(y.shape[0], 4)
         self.assertEqual(y.shape[1], 5)
+
 
 if __name__ == "__main__":
     unittest.main()
