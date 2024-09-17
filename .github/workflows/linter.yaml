@@ -9,7 +9,7 @@ env: # Comment env block if you don't want to apply fixes
   # Apply linter fixes configuration
   APPLY_FIXES: all # When active, APPLY_FIXES must also be defined as environment variable (in github/workflows/mega-linter.yml or other CI tool)
   APPLY_FIXES_EVENT: push
-  APPLY_FIXES_MODE: PR
+  APPLY_FIXES_MODE: commit
 
 jobs:
   build:

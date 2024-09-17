@@ -10,7 +10,7 @@ class DDPGCritic(nn.Module):
     hidden_dim: Sequence[int]
 
     @nn.compact
-    def __call__(self, obs : jnp.ndarray, action: jnp.ndarray) -> jnp.ndarray:
+    def __call__(self, obs : jnp.ndarray, action : jnp.ndarray) -> jnp.ndarray:
 
         input = jnp.concatenate([obs, action], axis=1)
 
