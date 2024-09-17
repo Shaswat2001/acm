@@ -13,7 +13,7 @@ class ContinuousMLP(nn.Module):
     bound: Sequence[float]
 
     @nn.compact
-    def __call__(self, obs: jnp.ndarray):
+    def __call__(self, obs : jnp.ndarray):
 
         for i, size in enumerate(self.hidden_dim):
             obs = nn.Dense(size, kernel_init=default_init())(obs)
