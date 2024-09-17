@@ -5,6 +5,10 @@ name: Lint Code Base
 
 on: push
 
+env: # Comment env block if you don't want to apply fixes
+  # Apply linter fixes configuration
+  APPLY_FIXES: all # When active, APPLY_FIXES must also be defined as environment variable (in github/workflows/mega-linter.yml or other CI tool)
+
 jobs:
   build:
     name: Lint Code Base
@@ -29,7 +33,7 @@ jobs:
         run: python3 -m unittest acm_planner/network/test_networks.py
       
       - name: Lint Code Base
-        uses: github/super-linter@v4
+        uses: oxsecurity/megalinter@v8
         env:
           VALIDATE_ALL_CODEBASE: false
           auto_fix: true
