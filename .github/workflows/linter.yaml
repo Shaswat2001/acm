@@ -28,12 +28,19 @@ jobs:
       - name: Unittest
         run: python3 -m unittest acm_planner/network/test_networks.py
       
-      - name: Lint Code Base
-        uses: samuelmeuli/lint-action@v1
+      - name: Run linters
+        uses: wearerequired/lint-action@v1
         with:
-            github_token: ${{ secrets.github_token }}
-            black: true
-            flake8: true
+          github_token: ${{ secrets.github_token }}
+          # Enable linters
+          black: true
+          flake8: true
+      # - name: Lint Code Base
+      #   uses: samuelmeuli/lint-action@v1
+      #   with:
+      #       github_token: ${{ secrets.github_token }}
+      #       black: true
+      #       flake8: true
         # env:
         #   VALIDATE_ALL_CODEBASE: false
         #   auto_fix: true
