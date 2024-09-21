@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 # sys.path.insert(0, '/Users/shaswatgarg/Documents/WaterlooMASc/StateSpaceUAV')
 from acm_planner.common.arguments import *
 from acm_planner.agent import DDPG
-from acm_planner.network.base_net import DiscreteMLP, DiscreteGaussianNet, ContinuousMLP, RNN, ContGaussianNet
+from acm_planner.network.base_net import ContinuousMLP
 import gym
 
 def train(args,env,trainer):
@@ -21,51 +21,26 @@ def train(args,env,trainer):
     avg_reward_list = []
     os.makedirs("config/saves/rl_rewards/" +args.Environment, exist_ok=True)
     os.makedirs("config/saves/images/" +args.Environment, exist_ok=True)
-    sample_added = 0
+    
     for i in range(args.n_episodes):
-        observation, _ = env.reset()
-        global_reward = 0
+        s = env.reset()
+        reward = 0
         
         while True:
 
-            state = env.state()
-            action = trainer.choose_action(observation)
+            action = trainer.choose_action(s)
+            next_state,rwd,done,info = env.step(action)
+            trainer.add(s,action,rwd,next_state,done)
+            trainer.learn()
+            reward+=rwd
 
-            next_observation,rwd,termination,truncation,info = env.step(action)
-            next_state = env.state()
-            global_reward += sum(list(rwd.values()))
-
-            if args.Algorithm in ["VDN","QMIX","FACMAC","FOP"]:
-                reward = global_reward
-            else:
-                reward = rwd
-            
-            sample_added += 1
-            if all(list(termination.values())) or all(list(truncation.values())): 
-                
-                done = {}
-                for key in termination.keys():
-                    done[key] = True
-                
-                trainer.add(state,observation,action,reward,next_state,next_observation,done)
-
-                if args.Algorithm in ["COMA"]:
-                    if i%args.train_network == 0:
-                        trainer.learn()
-
+            if done:
                 break
                 
-            else:
-                trainer.add(state,observation,action,reward,next_state,next_observation,termination)
-            
-            if args.Algorithm in ["MADDPG","MASoftQ","VDN","MATD3","QMIX","FACMAC"]:
-                trainer.learn()
+            s = next_state
 
-            observation = next_observation
-
-        total_reward.append(global_reward)
+        total_reward.append(reward)
         avg_reward = np.mean(total_reward[-40:])
-
         if avg_reward>best_reward and i > 10:
             best_reward=avg_reward
             if args.save_rl_weights:
@@ -76,16 +51,19 @@ def train(args,env,trainer):
         avg_reward_list.append(avg_reward)
 
     if args.save_results:
+        list_cont_rwd = [avg_reward_list]
         f = open("config/saves/rl_rewards/" +args.Environment + "/" + args.Algorithm + ".pkl","wb")
-        pickle.dump(avg_reward_list,f)
+        pickle.dump(list_cont_rwd,f)
         f.close()
-    
-    plt.figure()
+
+    plt.subplot(212)
     plt.title(f"Reward values - {args.Algorithm}")
     plt.xlabel("Iterations")
     plt.ylabel("Reward")
     plt.plot(avg_reward_list)
     plt.show()
+
+
 
 if __name__=="__main__":
 
@@ -93,42 +71,13 @@ if __name__=="__main__":
 
     args = build_parse()
 
-    if args.Algorithm in ["COMA","QMIX","VDN"]:
-        args.is_continous = False
-    else:
-        args.is_continous = True
-    
     env = gym.make("CartPole-v1")
     env.reset()
 
     args = get_env_parameters(args,env)
     
-    if args.Algorithm == "MADDPG":
-        args = get_maddpg_args(args)
-        trainer = MADDPG.MADDPG(args = args,policy = ContinuousMLP)
-    elif args.Algorithm == "FACMAC":
-        args = get_facmac_args(args)
-        trainer = FACMAC.FACMAC(args = args,policy = ContinuousMLP)
-    elif args.Algorithm == "MATD3":
-        args = get_maddpg_args(args)
-        trainer = MATD3.MATD3(args = args,policy = ContinuousMLP)
-    elif args.Algorithm == "COMA":
-        args = get_coma_args(args)
-        trainer = COMA.COMA(args = args,policy = DiscreteMLP)
-    elif args.Algorithm == "MAAC":
-        args = get_coma_args(args)
-        trainer = MAAC.MAAC(args = args,policy = DiscreteGaussianNet)
-    elif args.Algorithm == "QMIX":
-        args = get_qmix_args(args)
-        trainer = QMIX.QMIX(args = args,policy = RNN)
-    elif args.Algorithm == "MASoftQ":
-        args = get_maddpg_args(args)
-        trainer = MASoftQ.MASoftQ(args = args,policy = ContinuousMLP)
-    elif args.Algorithm == "VDN":
-        args = get_vdn_args(args)
-        trainer = VDN.VDN(args = args)
-    elif args.Algorithm == "FOP":
-        args = get_facmac_args(args)
-        trainer = FOP.FOP(args = args,policy = ContGaussianNet)
+    if args.Algorithm == "DDPG":
+        args = get_ddpg_args(args)
+        trainer = DDPG.DDPG(args = args,policy = ContinuousMLP)
 
     train(args,env,trainer)

@@ -1,13 +1,13 @@
 # NOTE: This would need to be in the root of the repo to use it
 # I placed it here because it is associated with this video
 
-name: Lint Code Base
+name: Lint ACM Planner Code Base
 
 on: push
 
 jobs:
   build:
-    name: Lint Code Base
+    name: Lint Planner Code Base
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -28,21 +28,10 @@ jobs:
       - name: Unittest
         run: python3 -m unittest acm_planner/network/test_networks.py
       
-      - name: Run linters
-        uses: wearerequired/lint-action@v1
-        with:
-          github_token: ${{ secrets.github_token }}
-          # Enable linters
-          black: true
-          flake8: true
-      # - name: Lint Code Base
-      #   uses: samuelmeuli/lint-action@v1
-      #   with:
-      #       github_token: ${{ secrets.github_token }}
-      #       black: true
-      #       flake8: true
-        # env:
-        #   VALIDATE_ALL_CODEBASE: false
-        #   auto_fix: true
-        #   DEFAULT_BRANCH: main
-        #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Superlint Code Base
+        uses: github/super-linter@v4
+        env:
+          VALIDATE_ALL_CODEBASE: false
+          auto_fix: true
+          DEFAULT_BRANCH: main
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

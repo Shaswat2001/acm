@@ -20,7 +20,6 @@ def build_parse():
 
     parser.add_argument("mem_size",nargs="?",type=int,default=1000000,help="Size of Replay Buffer")
     parser.add_argument("batch_size",nargs="?",type=int,default=64,help="Batch Size used during training")
-    parser.add_argument("n_agents",nargs="?",type=int,default=2,help="Total number of agents in the environment")
     parser.add_argument("n_episodes",nargs="?",type=int,default=100000,help="Total number of episodes to train the agent")
     parser.add_argument("n_batches",nargs="?",type=int,default=10,help="Total number of times the RL needs to be replicated")
     parser.add_argument("target_update",nargs="?",type=int,default=10,help="Iterations to update the target network")
@@ -44,7 +43,7 @@ def build_parse():
 
     return args
 
-def get_maddpg_args(args):
+def get_ddpg_args(args):
 
     args.is_continous = True
 
@@ -62,93 +61,14 @@ def get_maddpg_args(args):
     
     return args
 
-def get_facmac_args(args):
-
-    args.is_continous = True
-
-    args.critic_hidden = 64
-    args.policy_hidden = 64
-    args.mixer_hidden = 64
-
-    args.target_update = 2
-    
-    return args
-
-def get_vdn_args(args):
-
-    args.is_continous = True
-
-    args.critic_hidden = 64
-    args.policy_hidden = 64
-
-    args.target_update = 2
-
-    args.epsilon = 1.0
-    args.epsilon_min = 0.05
-    
-    return args
-
-def get_coma_args(args):
-
-    args.is_continous = False
-
-    args.critic_hidden = 64
-    args.policy_hidden = 64
-    args.target_update = 150
-    args.epsilon = 1.0
-    args.epsilon_min = 0.05
-
-    args.train_network = int(30/args.n_agents)
-    
-    args.grad_norm_clip = 10
-
-    args.critic_lr = 0.01
-    args.actor_lr = 0.01
-
-    args.gamma = 0.95
-    args.batch_size = 128
-
-    return args
-
-def get_qmix_args(args):
-
-    args.is_continous = False
-
-    args.rnn_hidden = 64
-    args.policy_hidden = 64
-    args.mixer_hidden = 64
-    
-    args.grad_norm_clip = 10
-
-    args.epsilon = 1.0
-    args.epsilon_min = 0.05
-
-    return args
-
 def get_env_parameters(args,env):
 
-    args.state_size = {}
-    args.input_shape = {}
-    args.n_actions = {}
-    args.action_space = {}
-    args.state_shape = env.state_space.shape[0]
-    args.max_action = {}
-    args.min_action = {}
-    args.env_agents = env.agents
-    args.n_agents = len(env.agents)
-
-    for agent in env.agents:
-        if args.is_continous:
-            args.state_size[agent] = env.observation_space(agent).shape[0]
-            args.input_shape[agent] = env.observation_space(agent).shape[0]
-            args.n_actions[agent] = env.action_space(agent).shape[0]
-            args.max_action[agent] = env.action_space(agent).high
-            args.min_action[agent] = env.action_space(agent).low
-            args.action_space[agent] = args.n_actions[agent]
-        else:
-            args.state_size[agent] = env.observation_space(agent).shape[0]
-            args.input_shape[agent] = env.observation_space(agent).shape[0]
-            args.n_actions[agent] = env.action_space(agent).n 
-            args.action_space[agent] = 1
+    args.state_size = env.state_size
+    args.input_shape = env.state_size
+    args.n_action = env.action_space.shape[0]
+    args.max_action = env.action_space.high
+    args.min_action = env.action_space.low
+    args.safe_max_action = env.safe_action_max
+    args.safe_min_action = -env.safe_action_max
 
     return args
