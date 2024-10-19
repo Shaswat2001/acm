@@ -47,8 +47,8 @@ def get_ddpg_args(args):
 
     args.is_continous = True
 
-    args.critic_hidden = 64
-    args.policy_hidden = 64
+    args.hidden_dim = [4,256,256]
+    args.act_hidden_dim = [3,256,256]
 
     args.critic_lr = 0.001
     args.actor_lr = 0.001
@@ -63,12 +63,10 @@ def get_ddpg_args(args):
 
 def get_env_parameters(args,env):
 
-    args.state_size = env.state_size
-    args.input_shape = env.state_size
+    args.state_size = env.observation_space.shape[0]
+    args.input_shape = env.observation_space.shape[0]
     args.n_action = env.action_space.shape[0]
     args.max_action = env.action_space.high
     args.min_action = env.action_space.low
-    args.safe_max_action = env.safe_action_max
-    args.safe_min_action = -env.safe_action_max
 
     return args

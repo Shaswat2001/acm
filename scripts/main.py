@@ -7,12 +7,13 @@ import sys
 import numpy as np
 import rclpy
 import copy
+import jax
 import matplotlib.pyplot as plt
 # sys.path.insert(0, '/Users/shaswatgarg/Documents/WaterlooMASc/StateSpaceUAV')
 from acm_planner.common.arguments import *
 from acm_planner.agent import DDPG
 from acm_planner.network.base_net import ContinuousMLP
-import gym
+import gymnasium as gym
 
 def train(args,env,trainer):
 
@@ -23,13 +24,15 @@ def train(args,env,trainer):
     os.makedirs("config/saves/images/" +args.Environment, exist_ok=True)
     
     for i in range(args.n_episodes):
-        s = env.reset()
+        s = env.reset()[0]
         reward = 0
-        
+        m =0
         while True:
-
+            m+=1
             action = trainer.choose_action(s)
-            next_state,rwd,done,info = env.step(action)
+            next_state,rwd,done,_,_ = env.step(action)
+            if m == 200:
+                done = True
             trainer.add(s,action,rwd,next_state,done)
             trainer.learn()
             reward+=rwd
@@ -63,15 +66,13 @@ def train(args,env,trainer):
     plt.plot(avg_reward_list)
     plt.show()
 
-
-
 if __name__=="__main__":
 
     rclpy.init(args=None)
 
     args = build_parse()
 
-    env = gym.make("CartPole-v1")
+    env = gym.make("Pendulum-v1")
     env.reset()
 
     args = get_env_parameters(args,env)

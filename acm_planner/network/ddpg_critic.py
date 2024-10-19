@@ -1,20 +1,28 @@
-from flax import linen as nn
-import jax.numpy as jnp
-
+from typing import Optional
+import torch
+from torch import nn 
 from typing import Sequence
-from acm_planner.network.base_net import default_init
 
 class DDPGCritic(nn.Module):
 
-    hidden_dim: Sequence[int]
+    def __init__(self, hidden_dim : Sequence[int]):
 
-    @nn.compact
-    def __call__(self, obs: jnp.ndarray, action: jnp.ndarray) -> jnp.ndarray:
+        super(DDPGCritic,self).__init__()
 
-        input = jnp.concatenate([obs, action], axis=1)
+        layers = []
+        for i in range(len(hidden_dim)-1):
 
-        for i, size in enumerate(self.hidden_dim):
-            input = nn.Dense(size, kernel_init=default_init())(input)
-            input = nn.relu(input)
+            layers.append(nn.Linear(hidden_dim[i], hidden_dim[i+1]))
+            layers.append(nn.ReLU())
 
-        return input
+        layers.append(nn.Linear(hidden_dim[-1],1))
+
+        self.network = nn.Sequential(*layers)
+
+    def forward(self,state : torch.Tensor, action : torch.Tensor):
+
+        ipt = torch.cat((state,action),dim=1)
+        output = self.network(ipt)
+
+        return output
+

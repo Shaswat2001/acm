@@ -1,44 +1,104 @@
 from typing import Any
-import jax
+import numpy as np
 import argparse
-from jax.random import split
-import flax.linen as nn
+import torch
+from torch import nn 
+import os
 
 from acm_planner.network.ddpg_critic import DDPGCritic
-from acm_planner.common.utils import create_train_state,init_params
+from acm_planner.common.exploration import OUActionNoise
+from acm_planner.common.replay_buffer import ReplayBuffer
+from acm_planner.common.utils import soft_update,hard_update
 
 class DDPG:
 
-    def __init__(self, key: jax.Array, args: argparse.ArgumentParser, policy: nn.Module) -> None:
+    def __init__(self, args: argparse.ArgumentParser, policy: nn.Module) -> None:
 
         self.args = args
         self.policy = policy
-        self.key = key
-        
         self.reset()
-        self.initialize_params()
     
     def reset(self) -> None:
 
         self.PolicyNetwork = self.policy(hidden_dim = self.args.act_hidden_dim, n_action = self.args.n_action, bound = self.args.max_action)
+        self.PolicyOptimizer = torch.optim.Adam(self.PolicyNetwork.parameters(),lr=self.args.actor_lr)
         self.TargetPolicyNetwork = self.policy(hidden_dim = self.args.act_hidden_dim, n_action = self.args.n_action, bound = self.args.max_action)
 
-        self.QNetwork = DDPGCritic(hidden_dim=self.args.hidden_dim)
-        self.TargetQNetwork = DDPGCritic(hidden_dim=self.args.hidden_dim)
+        self.QNetwork = DDPGCritic(hidden_dim = self.args.hidden_dim)
+        self.QOptimizer = torch.optim.Adam(self.QNetwork.parameters(),lr=self.args.critic_lr)
+        self.TargetQNetwork = DDPGCritic(hidden_dim = self.args.hidden_dim)
 
-    def initialize_params(self) -> None:
+        self.exploration = OUActionNoise(mean=np.zeros(self.args.n_action), std_deviation=float(0.08) * np.ones(self.args.n_action))
+        self.buffer = ReplayBuffer(input_shape = self.args.input_shape, mem_size = self.args.mem_size, n_actions = self.args.n_action)
 
-        policy_key,qnet_key,tpolicy_key,tqnet_key = split(self.key,num=4)
-        policy_input = self.args.input_shape
-        qnet_input = self.args.input_shape +  self.args.n_action
+        hard_update(self.TargetPolicyNetwork,self.PolicyNetwork)
+        hard_update(self.TargetQNetwork,self.QNetwork)
 
-        policy_param = init_params(policy_key,input_dims=policy_input,model=self.PolicyNetwork)
-        tpolicy_param = init_params(tpolicy_key,input_dims=policy_input,model=self.TargetPolicyNetwork)
-        qnet_param = init_params(qnet_key,input_dims=qnet_input,model=self.QNetwork)
-        tqnet_param = init_params(tqnet_key,input_dims=qnet_input,model=self.TargetQNetwork)
+        self.learning_step = 0
 
-        self.PolicyState = create_train_state(policy_param, self.PolicyNetwork)
-        self.TargetPolicyState = create_train_state(tpolicy_param, self.TargetPolicyNetwork)
-        self.QState = create_train_state(qnet_param, self.QNetwork)
-        self.TargetQState = create_train_state(tqnet_param, self.TargetQNetwork)
+    def choose_action(self,state: np.ndarray,training_state: str = "training") -> np.ndarray:
 
+        state = torch.Tensor(state)
+
+        if training_state == "training":
+            action = self.PolicyNetwork(state).detach().numpy()
+            action += self.exploration()
+        else:
+            action = self.TargetPolicyNetwork(state).detach().numpy()
+
+        action = np.clip(action,self.args.min_action,self.args.max_action)
+        return action
+    
+    def learn(self) -> None:
+        
+        self.learning_step+=1
+        if self.learning_step<self.args.batch_size:
+            return
+        state,action,reward,next_state,done = self.buffer.shuffle()
+
+        state = torch.Tensor(state)
+        next_state = torch.Tensor(next_state)       
+        action  = torch.Tensor(action)
+        reward = torch.Tensor(reward)
+        next_state = torch.Tensor(next_state)
+        done = torch.Tensor(done)
+        
+        target_critic_action = self.TargetPolicyNetwork(next_state)
+        target = self.TargetQNetwork(next_state,target_critic_action)
+        y = reward + self.args.gamma*target*(1-done)
+        critic_value = self.QNetwork(state,action)
+        critic_loss = torch.mean(torch.square(y - critic_value),dim=1)
+        self.QOptimizer.zero_grad()
+        critic_loss.mean().backward()
+        self.QOptimizer.step()
+
+        actions = self.PolicyNetwork(state)
+        critic_value = self.QNetwork(state,actions)
+        actor_loss = -critic_value.mean()
+        self.PolicyOptimizer.zero_grad()
+        actor_loss.mean().backward()
+        self.PolicyOptimizer.step()
+
+        if self.learning_step%self.args.target_update == 0:                
+            soft_update(self.TargetPolicyNetwork,self.PolicyNetwork,self.args.tau)
+            soft_update(self.TargetQNetwork,self.QNetwork,self.args.tau)
+    
+    
+    def add(self,s,action,rwd,next_state,done) -> None:
+        self.buffer.store(s,action,rwd,next_state,done)
+
+    def save(self,env) -> None:
+        print("-------SAVING NETWORK -------")
+
+        os.makedirs("config/saves/training_weights/"+ env + "/ddpg_weights", exist_ok=True)
+        torch.save(self.PolicyNetwork.state_dict(),"config/saves/training_weights/"+ env + "/ddpg_weights/actorWeights.pth")
+        torch.save(self.QNetwork.state_dict(),"config/saves/training_weights/"+ env + "/ddpg_weights/QWeights.pth")
+        torch.save(self.TargetPolicyNetwork.state_dict(),"config/saves/training_weights/"+ env + "/ddpg_weights/TargetactorWeights.pth")
+        torch.save(self.TargetQNetwork.state_dict(),"config/saves/training_weights/"+ env + "/ddpg_weights/TargetQWeights.pth")
+
+    def load(self,env) -> None:
+
+        self.PolicyNetwork.load_state_dict(torch.load("config/saves/training_weights/"+ env + "/ddpg_weights/actorWeights.pth",map_location=torch.device('cpu')))
+        self.QNetwork.load_state_dict(torch.load("config/saves/training_weights/"+ env + "/ddpg_weights/QWeights.pth",map_location=torch.device('cpu')))
+        self.TargetPolicyNetwork.load_state_dict(torch.load("config/saves/training_weights/"+ env + "/ddpg_weights/TargetactorWeights.pth",map_location=torch.device('cpu')))
+        self.TargetQNetwork.load_state_dict(torch.load("config/saves/training_weights/"+ env + "/ddpg_weights/TargetQWeights.pth",map_location=torch.device('cpu')))

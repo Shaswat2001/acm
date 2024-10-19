@@ -1,26 +1,30 @@
 from typing import Optional
-import jax.numpy as jnp
-import flax.linen as nn
+import torch
+from torch import nn 
 from typing import Sequence
-
-def default_init(scale: Optional[float] = jnp.sqrt(2)):
-    return nn.initializers.orthogonal(scale)
 
 class ContinuousMLP(nn.Module):
 
-    hidden_dim: Sequence[int]
-    n_action: int
-    bound: Sequence[float]
+    def __init__(self, hidden_dim : Sequence[int], n_action: int, bound: Sequence[float]):
 
-    @nn.compact
-    def __call__(self, obs : jnp.ndarray):
+        super(ContinuousMLP,self).__init__()
+        self.bound = torch.tensor(bound,dtype=torch.float32)
 
-        for i, size in enumerate(self.hidden_dim):
-            obs = nn.Dense(size, kernel_init=default_init())(obs)
-            obs = nn.relu(obs)
+        layers = []
+        for i in range(len(hidden_dim)-1):
 
-        obs = nn.Dense(self.n_action, kernel_init=default_init())(obs)
-        obs = nn.sigmoid(obs)
-        obs = jnp.multiply(obs,self.bound)
+            layers.append(nn.Linear(hidden_dim[i], hidden_dim[i+1]))
+            layers.append(nn.ReLU())
 
-        return obs
+        layers.append(nn.Linear(hidden_dim[-1],n_action))
+        layers.append(nn.Tanh())
+
+        self.network = nn.Sequential(*layers)
+
+    def forward(self,state : torch.Tensor):
+
+        output = self.network(state)
+        output = output*self.bound
+
+        return output
+
