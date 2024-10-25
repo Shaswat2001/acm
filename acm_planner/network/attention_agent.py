@@ -184,11 +184,15 @@ class AttentionAgent(nn.Module):
             critic_in = torch.cat((s_encodings[i], *other_all_values[i]), dim=1)
             all_q = self.critics[i](critic_in)
             all_rets.append(all_q)
-
+        
         policy_input = torch.stack(all_rets).reshape(state.shape[0],-1)
-        trajectory = self.trajnet(policy_input)
+        trajectory = []
+        for i in range(state.shape[0]):
+            arg_val = torch.argmax(policy_input[i,:])
+            final_traj = inps_state[i,arg_val,:]
+            trajectory.append(final_traj)
 
-        trajectory = trajectory*self.traj_bound
+        trajectory = torch.stack(trajectory)
         return trajectory
 
 if __name__ == "__main__":
