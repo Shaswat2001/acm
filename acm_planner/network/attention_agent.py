@@ -57,7 +57,7 @@ class AttentionAgent(nn.Module):
         for _ in range(n_traj):
         # iterate over agents
             encoder = nn.Sequential(
-                nn.Linear(traj_dim, hidden_dim),
+                nn.Linear(traj_dim+1, hidden_dim),
                 nn.LeakyReLU()
                 )
             
@@ -135,9 +135,14 @@ class AttentionAgent(nn.Module):
             trajectories.append(trajectory)
 
         inps_state = torch.stack(trajectories).permute(1,0,2)
+
+        traj_end = inps_state[:,:,6:9]
+        new_pose = state.reshape(state.shape[0],1,-1) + traj_end
+        cost = torch.linalg.norm(new_pose,dim=2)
+        enc_state = torch.concat([inps_state,cost.reshape(cost.shape[0],-1,1)],dim=2)
         policy_input = []
         # extract state-action encoding for each agent
-        ta_encodings = [self.critic_encoders[i](inps_state[:,i,:]) for i in range(inps_state.shape[1])]
+        ta_encodings = [self.critic_encoders[i](enc_state[:,i,:]) for i in range(inps_state.shape[1])]
         # ta_encodings = [encoder(inp) for encoder, inp in zip(self.critic_encoders, inps)]
         # extract state encoding for each agent that we're returning Q for
         s_encodings = [self.state_encoders[n_t](inps_state[:,n_t,:]) for n_t in range(self.n_traj)]
