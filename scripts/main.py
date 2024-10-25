@@ -9,10 +9,11 @@ import rclpy
 import copy
 import jax
 import matplotlib.pyplot as plt
-# sys.path.insert(0, '/Users/shaswatgarg/Documents/WaterlooMASc/StateSpaceUAV')
+from acm_planner.environment.GazeboEnv.BaseGazeboACMEnv import BaseGazeboACMEnv
 from acm_planner.common.arguments import *
 from acm_planner.agent import DDPG
 from acm_planner.network.base_net import ContinuousMLP
+from acm_planner.network.attention_agent import AttentionAgent
 import gymnasium as gym
 
 def train(args,env,trainer):
@@ -24,15 +25,13 @@ def train(args,env,trainer):
     os.makedirs("config/saves/images/" +args.Environment, exist_ok=True)
     
     for i in range(args.n_episodes):
-        s = env.reset()[0]
+        s = env.reset(pose = np.array([0.0,0.0,2.0]))
         reward = 0
-        m =0
+
         while True:
-            m+=1
+
             action = trainer.choose_action(s)
             next_state,rwd,done,_,_ = env.step(action)
-            if m == 200:
-                done = True
             trainer.add(s,action,rwd,next_state,done)
             trainer.learn()
             reward+=rwd
@@ -72,13 +71,12 @@ if __name__=="__main__":
 
     args = build_parse()
 
-    env = gym.make("Pendulum-v1")
-    env.reset()
+    env = BaseGazeboACMEnv()
 
     args = get_env_parameters(args,env)
     
     if args.Algorithm == "DDPG":
         args = get_ddpg_args(args)
-        trainer = DDPG.DDPG(args = args,policy = ContinuousMLP)
+        trainer = DDPG.DDPG(args = args,policy = AttentionAgent)
 
     train(args,env,trainer)

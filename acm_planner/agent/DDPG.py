@@ -19,17 +19,17 @@ class DDPG:
         self.reset()
     
     def reset(self) -> None:
-
-        self.PolicyNetwork = self.policy(hidden_dim = self.args.act_hidden_dim, n_action = self.args.n_action, bound = self.args.max_action)
+        
+        self.PolicyNetwork = self.policy(n_traj=100,action_dim = self.args.n_action, traj_dim=9,hidden_dim=64,attention_head=4, state_dim=self.args.input_shape, min_bound=self.args.max_action, max_bound=self.args.min_action,traj_bound = np.array([0.1]*9))
         self.PolicyOptimizer = torch.optim.Adam(self.PolicyNetwork.parameters(),lr=self.args.actor_lr)
-        self.TargetPolicyNetwork = self.policy(hidden_dim = self.args.act_hidden_dim, n_action = self.args.n_action, bound = self.args.max_action)
+        self.TargetPolicyNetwork = self.policy(n_traj=100,action_dim = self.args.n_action, traj_dim=9,hidden_dim=64,attention_head=4, state_dim=self.args.input_shape, min_bound=self.args.max_action, max_bound=self.args.min_action,traj_bound = np.array([0.1]*9))
 
         self.QNetwork = DDPGCritic(hidden_dim = self.args.hidden_dim)
         self.QOptimizer = torch.optim.Adam(self.QNetwork.parameters(),lr=self.args.critic_lr)
         self.TargetQNetwork = DDPGCritic(hidden_dim = self.args.hidden_dim)
 
-        self.exploration = OUActionNoise(mean=np.zeros(self.args.n_action), std_deviation=float(0.08) * np.ones(self.args.n_action))
-        self.buffer = ReplayBuffer(input_shape = self.args.input_shape, mem_size = self.args.mem_size, n_actions = self.args.n_action)
+        self.exploration = OUActionNoise(mean=np.zeros(9), std_deviation=float(0.01) * np.ones(9))
+        self.buffer = ReplayBuffer(input_shape = self.args.input_shape, mem_size = self.args.mem_size, n_actions = 9)
 
         hard_update(self.TargetPolicyNetwork,self.PolicyNetwork)
         hard_update(self.TargetQNetwork,self.QNetwork)
@@ -46,14 +46,15 @@ class DDPG:
         else:
             action = self.TargetPolicyNetwork(state).detach().numpy()
 
-        action = np.clip(action,self.args.min_action,self.args.max_action)
         return action
     
     def learn(self) -> None:
         
         self.learning_step+=1
+        
         if self.learning_step<self.args.batch_size:
             return
+        
         state,action,reward,next_state,done = self.buffer.shuffle()
 
         state = torch.Tensor(state)

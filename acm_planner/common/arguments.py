@@ -5,7 +5,7 @@ def build_parse():
 
     parser = argparse.ArgumentParser(description="RL Algorithm Variables")
 
-    parser.add_argument("Environment",nargs="?",type=str,default="simple_spread",help="Name of OPEN AI environment")
+    parser.add_argument("Environment",nargs="?",type=str,default="lowest_cost_no_obs",help="Name of OPEN AI environment")
     parser.add_argument("input_shape",nargs="?",type=int,default=[],help="Shape of environment state")
     parser.add_argument("n_actions",nargs="?",type=int,default=[],help="shape of environment action")
     parser.add_argument("max_action",nargs="?",type=float,default=[],help="Max possible value of action")
@@ -47,18 +47,18 @@ def get_ddpg_args(args):
 
     args.is_continous = True
 
-    args.hidden_dim = [4,256,256]
+    args.hidden_dim = [12,256,256]
     args.act_hidden_dim = [3,256,256]
 
-    args.critic_lr = 0.001
-    args.actor_lr = 0.001
+    args.critic_lr = 0.0001
+    args.actor_lr = 0.0001
     
-    args.target_update = 1
-    args.batch_size = 1024
+    args.target_update = 2
+    args.batch_size = 64
 
-    args.tau = 0.01
-    args.gamma = 0.95
-    
+    args.tau = 0.005
+    args.gamma = 0.99
+    # args.n_episodes = 1
     return args
 
 def get_env_parameters(args,env):
