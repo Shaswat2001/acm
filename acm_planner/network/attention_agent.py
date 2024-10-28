@@ -138,7 +138,7 @@ class AttentionAgent(nn.Module):
 
         traj_end = inps_state[:,:,6:9]
         new_pose = state.reshape(state.shape[0],1,-1) + traj_end
-        cost = torch.linalg.norm(new_pose,dim=2)
+        cost = -torch.linalg.norm(new_pose,dim=2)
         enc_state = torch.concat([inps_state,cost.reshape(cost.shape[0],-1,1)],dim=2)
         policy_input = []
         # extract state-action encoding for each agent
